@@ -50,8 +50,16 @@ class LoanSystem(GenericSystem):
         self.commit()
 
     def return_loan(self, name, item):
-        self.execute("DELETE FROM loans WHERE name=? AND item=?",[name, item])
+        self.execute("DELETE FROM loans WHERE user=? AND item=?",[name, item])
         self.commit()
+
+    def list_loaned(self, name):
+        self.execute("SELECT * FROM loans WHERE user=?",[name])
+        return self.cur.fetchall()
+
+    def loan_report(self):
+        self.execute("SELECT * FROM loans",[])
+        return self.cur.fetchall()
 
 class UserManagementSystem(GenericSystem):
     def login_user(self, name, password):
@@ -94,6 +102,9 @@ class StockSystem(GenericSystem):
     def mark_loaned(self, item):
         self.execute("UPDATE items SET status='loaned' WHERE id=?", [item])
         self.commit()
+    
+    def mark_reserved(self, item):
+        self.execute("UPDATE items SET status='reserved' WHERE id=?",[item])
 
     def mark_overdue(self, item):
         self.execute("UPDATE items SET status='overdue' WHERE id=?", [item])
@@ -144,6 +155,9 @@ class BaseMenu():
     def get_name(self):
         return self.__user_name
 
+    def get_name_id(self):
+        return self.lms.ums.search(self.__user_name)[0]
+
     def print_options(self):
         counter=0
         for option in self._options_list:
@@ -163,6 +177,8 @@ class BaseOptions():
     def options(self):
         return {"exit":self.exit,"login":self.login, "logout":self.logout, "search":self.search}
     def exit(self):
+        self.lms.db.commit()
+        self.lms.db.close()
         sys.exit()
     def login(self):
         name=input("Enter user name: ")
@@ -188,17 +204,34 @@ class BaseOptions():
 
 class MemberOptions(BaseOptions):
     def options(self):
-        return super().options() | {"borrow item":self.borrow_item,"reserve item":self.reserve_item,"return item":self.return_item}
+        return super().options() | {"list items":self.list_loans,"borrow item":self.borrow_item,"reserve item":self.reserve_item,"return item":self.return_item}
     def borrow_item(self):
-        pass
+        item_id=int(input("Enter Item ID: "))
+        name=self.menu.get_name_id()
+        self.lms.ls.request_loan(name, item_id)
+        self.lms.ss.mark_loaned(item_id)
     def reserve_item(self):
-        pass
+        item_id=("Enter Item ID: ")
+        name=self.menu.get_name_id()
+        self.lms.ls.request_hold(name, item_id)
+        self.lms.ss.mark_reserved(item_id)
     def return_item(self):
-        pass
+        item_id=int(input("Enter Item ID "))
+        name=self.menu.get_name_id()
+        self.lms.ls.return_loan(name, item_id)
+        self.lms.ss.mark_available(item_id)
+    def list_loans(self):
+        name=self.menu.get_name_id()
+        print(self.lms.ls.list_loaned(name))
+        input("'Enter' to Continue")
 
 class LibrarianOptions(MemberOptions):
     def options(self):
-        return super().options() | {"add item":self.add_item,"update item":self.update_item}
+        return super().options() | {"list loans and holds":self.list_active_loans_holds,"add item":self.add_item,"update item":self.update_item}
+
+    def list_active_loans_holds(self):
+        print(self.lms.ls.loan_report)
+        input("'Enter' to Continue")
     
     def add_item(self):
         title=input("Enter Title: ")
