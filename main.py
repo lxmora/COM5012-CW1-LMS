@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import sys
 
 class LibraryManagementSystem:
     def __init__(self):
@@ -8,16 +9,16 @@ class LibraryManagementSystem:
 
         try:
             self.cur.execute("CREATE TABLE users(id INTEGER PRIMARY KEY AUTOINCREMENT, name, password, permissions);")
-        except sqlite3.OperationalError as e:
-            print(e)
+        except sqlite3.OperationalError:
+            pass
         try:
             self.cur.execute("CREATE TABLE items(id INTEGER PRIMARY KEY AUTOINCREMENT, status, title, author);")
-        except sqlite3.OperationalError as e:
-            print(e)
+        except sqlite3.OperationalError:
+            pass
         try:
             self.cur.execute("CREATE TABLE loans(id INTEGER PRIMARY KEY AUTOINCREMENT, user, item, type, expires, FOREIGN KEY(item) REFERENCES items(id), FOREIGN KEY(user) REFERENCES users(id));")
-        except sqlite3.OperationalError as e:
-            print(e)
+        except sqlite3.OperationalError:
+            pass
 
         self.ls = LoanSystem(self.db)
         self.ums = UserManagementSystem(self.db)
@@ -61,7 +62,7 @@ class UserManagementSystem(GenericSystem):
         self.execute("SELECT id FROM users WHERE name=?",[name])
         return self.cur.fetchone()
 
-    def add_user(self, name, password, permission_level):
+    def add_user(self, name, password, permission_level="guest"):
         self.execute("INSERT INTO users (name, password, permissions) VALUES (?,?,?);",[name, password, permission_level])
         self.commit()
 
@@ -87,7 +88,7 @@ class StockSystem(GenericSystem):
         self.commit()
 
     def remove_item(self, item):
-        self.execute("DELETE FROM items WHERE id=?",[item])
+        self.execute("UPDATE items SET status='removed' WHERE id=?",[item])
         self.commit()
 
     def mark_loaned(self, item):
@@ -118,6 +119,7 @@ class BaseMenu():
         self.options={}
         self.lms = LibraryManagementSystem()
         self.__user_permissions = "guest"
+        self.__user_name = ""
         self.options_list=[]
 
     def update_options(self):
@@ -131,9 +133,16 @@ class BaseMenu():
             self.options=BaseOptions(self).options()
         self.options_list=list(self.options.keys())
 
-    def update_login(self, perms):
+    def update_login(self, name, perms):
         self.__user_permissions = perms
+        self.update_name(name)
         self.update_options()
+
+    def update_name(self, name):
+        self.__user_name = name
+
+    def get_name(self):
+        return self.__user_name
 
     def print_options(self):
         counter=0
@@ -152,13 +161,30 @@ class BaseOptions():
         self.menu=menu
         self.lms=menu.lms
     def options(self):
-        return {"login":self.login, "logout":self.logout, "search":self.search}
+        return {"exit":self.exit,"login":self.login, "logout":self.logout, "search":self.search}
+    def exit(self):
+        sys.exit()
     def login(self):
-        self.menu.update_login("admin")
+        name=input("Enter user name: ")
+        password=input("Enter password: ")
+        perms=self.lms.ums.login_user(name, password)[0]
+        self.menu.update_login(name,perms)
     def logout(self):
-        self.menu.update_login("guest")
+        self.menu.update_login("","guest")
     def search(self):
-        pass
+        print("0> Search by Title\n1> Search by Author")
+        if input() == "0":
+            out=self.lms.ss.search_title(input("Enter Title:"))
+        elif input() == "1":
+            out=self.lms.ss.search_author(input("Author"))
+        else:
+            print("Invalid Input")
+            out = ""
+        if str(out) == "[]":
+            print("No Results Found")
+        else:
+            print(out)
+        input("'Enter' to Continue")
 
 class MemberOptions(BaseOptions):
     def options(self):
@@ -173,27 +199,52 @@ class MemberOptions(BaseOptions):
 class LibrarianOptions(MemberOptions):
     def options(self):
         return super().options() | {"add item":self.add_item,"update item":self.update_item}
+    
     def add_item(self):
-        pass
+        title=input("Enter Title: ")
+        author=input("Enter Author: ")
+        self.lms.ss.add_item(title, author)
+
     def update_item(self):
+        option=input("0> Back\n1> Mark Overdue\n2> Mark Loaned\n3> Mark Available\n4> Mark Removed")
+        prompt="Enter Item ID: "
+        if option == "0":
+            prompt="'Enter' to Continue"
+        item_id=input(prompt)
+        if option == "1":
+            self.lms.ss.mark_overdue(item_id)
+        if option == "2":
+            self.lms.ss.mark_loaned(item_id)
+        if option == "3":
+            self.lms.ss.mark_available(item_id)
+        if option == "4":
+            self.lms.ss.remove_item(item_id)
+        else:
+            input("Invalid Option: 'Enter to Continue'")
+
+    def item_report(self):
         pass
 
 class AdminOptions(LibrarianOptions):
     def options(self):
         return super().options() | {"suspend user":self.suspend_user,"add user":self.add_user}
     def suspend_user(self):
-        print("suspended user")
-        return self
-    def add_user(self):
-        pass
+        name=input("Enter user name: ")
+        self.lms.ums.suspend_user(name)
 
-menu = BaseMenu()
-menu.update_options()
+    def add_user(self):
+        name=input("Enter user name:")
+        password=input("Enter password:")
+        perms=input("Enter Permission Level:")
+        self.lms.ums.add_user(name,password,perms)
+
+app = BaseMenu()
+app.update_options()
 if os.name == "nt":
     CLEAR="cls"
 else:
     CLEAR="clear"
 while True:
     os.system(CLEAR)
-    menu.print_options()
-    menu.get_option()
+    app.print_options()
+    app.get_option()
