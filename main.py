@@ -116,22 +116,22 @@ class StockSystem(GenericSystem):
 
 class BaseMenu():
     def __init__(self):
-        self.options={}
+        self._options={}
         self.lms = LibraryManagementSystem()
         self.__user_permissions = "guest"
         self.__user_name = ""
-        self.options_list=[]
+        self._options_list=[]
 
     def update_options(self):
         if self.__user_permissions == "member":
-            self.options=MemberOptions(self).options()
+            self._options=MemberOptions(self).options()
         if self.__user_permissions == "librarian":
-            self.options=LibrarianOptions(self).options()
+            self._options=LibrarianOptions(self).options()
         if self.__user_permissions == "admin":
-            self.options=AdminOptions(self).options()
+            self._options=AdminOptions(self).options()
         else:
-            self.options=BaseOptions(self).options()
-        self.options_list=list(self.options.keys())
+            self._options=BaseOptions(self).options()
+        self._options_list=list(self._options.keys())
 
     def update_login(self, name, perms):
         self.__user_permissions = perms
@@ -146,14 +146,14 @@ class BaseMenu():
 
     def print_options(self):
         counter=0
-        for option in self.options_list:
+        for option in self._options_list:
             print(str(counter)+"> "+str(option))
             counter+=1
 
     def get_option(self):
         print("Enter an Option:")
         option=int(input())
-        self.options[self.options_list[option]]()
+        self._options[self._options_list[option]]()
 
 
 class BaseOptions():
