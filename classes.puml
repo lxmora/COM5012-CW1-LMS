@@ -1,0 +1,87 @@
+@startuml classes
+set namespaceSeparator none
+class "AdminOptions" as main.AdminOptions {
+  add_user()
+  options()
+  suspend_user()
+}
+class "BaseMenu" as main.BaseMenu {
+  lms
+  options : dict
+  options_list : list
+  get_option()
+  print_options()
+  update_login(perms)
+  update_options()
+}
+class "BaseOptions" as main.BaseOptions {
+  lms
+  menu
+  login()
+  logout()
+  options()
+  search()
+}
+class "GenericSystem" as main.GenericSystem {
+  cur : sqlite3.Cursor
+  db : sqlite3.Connection
+  commit()
+  execute(string, args)
+}
+class "LibrarianOptions" as main.LibrarianOptions {
+  add_item()
+  item_report()
+  options()
+  update_item()
+}
+class "LibraryManagementSystem" as main.LibraryManagementSystem {
+  cur : sqlite3.Cursor
+  db : sqlite3.Connection
+  ls
+  ss
+  ums
+}
+class "LoanSystem" as main.LoanSystem {
+  request_hold(name, item)
+  request_loan(name, item)
+  return_loan(name, item)
+}
+class "MemberOptions" as main.MemberOptions {
+  borrow_item()
+  options()
+  reserve_item()
+  return_item()
+}
+class "StockSystem" as main.StockSystem {
+  add_item(title, author)
+  mark_available(item)
+  mark_loaned(item)
+  mark_overdue(item)
+  remove_item(item)
+  search(title, author)
+  search_author(author)
+  search_title(title)
+}
+class "UserManagementSystem" as main.UserManagementSystem {
+  add_user(name, password, permission_level)
+  login_user(name, password)
+  make_admin(name)
+  make_librarian(name)
+  make_member(name)
+  search(name)
+  suspend_user(name)
+}
+main.AdminOptions --|> main.LibrarianOptions
+main.LibrarianOptions --|> main.MemberOptions
+main.LoanSystem --|> main.GenericSystem
+main.MemberOptions --|> main.BaseOptions
+main.StockSystem --|> main.GenericSystem
+main.UserManagementSystem --|> main.GenericSystem
+main.LibraryManagementSystem --* main.BaseMenu : lms
+main.LoanSystem --* main.LibraryManagementSystem : ls
+main.StockSystem --* main.LibraryManagementSystem : ss
+main.UserManagementSystem --* main.LibraryManagementSystem : ums
+main.LibraryManagementSystem --* main.BaseOptions : lms
+main.BaseOptions *-- main.BaseMenu : menu
+@enduml
+
