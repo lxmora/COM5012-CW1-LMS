@@ -2,7 +2,7 @@ Functional Requirements
     - Loan and Reserve Items
     - Track Item Stock Status
     - Authenticated Access
-    - Manage Users
+    - Manage Users (Guests, Members, Librarians, Administators)
 
 Non-Functional Requirements
     - Data Reliability
